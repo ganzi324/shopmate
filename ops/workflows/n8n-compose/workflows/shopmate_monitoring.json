@@ -1,0 +1,294 @@
+{
+  "name": "shopmate_monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 1-4 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -80,
+        -16
+      ],
+      "id": "52790a10-72fc-400f-8a15-1789555b908e",
+      "name": "Schedule Trigger",
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all()\n\nif (\n  data.length === 1 &&\n  Object.keys(data[0].json).length === 0\n) {\n  return { message: \"모든 화주사 미전송 건수 0건\" };\n}\n\nconst NAME_PADDING = 4;\nconst COUNT_PADDING = 4;\n\nconst HEADER_NAME = \"화주사\";\nconst HEADER_COUNT = \"미전송 건수\";\n\nfunction getDisplayWidth(str) {\n  return [...str].reduce((w, ch) => {\n    if (ch.match(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/)) return w + 2;\n    return w + 1;\n  }, 0);\n}\n\n// 최대 길이 계산\nconst maxNameLength = Math.max(\n  getDisplayWidth(HEADER_NAME),\n  ...data.map(d => getDisplayWidth(d.json.pwn_nm))\n);\n\nconst maxCountLength = Math.max(\n  getDisplayWidth(HEADER_COUNT),\n  ...data.map(d => getDisplayWidth(String(d.json.cnt)))\n);\n\n// WIDTH 산정\nconst NAME_WIDTH = maxNameLength + NAME_PADDING;\nconst COUNT_WIDTH = maxCountLength + COUNT_PADDING;\nconst TOTAL_WIDTH = NAME_WIDTH + COUNT_WIDTH;\n\n// 출력\nlet output = \"\";\noutput += HEADER_NAME.padEnd(NAME_WIDTH - getDisplayWidth(HEADER_NAME)) + HEADER_COUNT.padStart(COUNT_WIDTH) + \"\\n\";\noutput += \"-\".repeat(TOTAL_WIDTH) + \"\\n\\n\";\n\ndata.forEach(d => {\n  const { pwn_nm, cnt } = d.json;\n\n  output +=\n    pwn_nm.padEnd(NAME_WIDTH - getDisplayWidth(pwn_nm)) +\n    String(cnt).padStart(COUNT_WIDTH) +\n    \"\\n\";\n});\n\nreturn { message: output };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "6a9f38ea-59d1-48c1-945c-4ceb6dee4f31",
+      "name": "Code in JavaScript",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wh.jandi.com/connect-api/webhook/28640498/c4204effff2b34ff8fbc6fa31606b40a",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.tosslab.jandi-v2+json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ body: $input.item.json.message }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        624,
+        -208
+      ],
+      "id": "929e230e-674d-4749-88ef-c5e716cb5b74",
+      "name": "Send Message 1.0"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wh.jandi.com/connect-api/webhook/28640498/00d07b6df0edc68d9dfaa3c269877df7",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.tosslab.jandi-v2+json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ body: $input.item.json.message }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "adecbbb8-cd57-4f9e-9698-bcdbe59aa173",
+      "name": "Send Message 2.0"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all()\n\nif (\n  data.length === 1 &&\n  Object.keys(data[0].json).length === 0\n) {\n  return { message: \"모든 화주사 미전송 건수 0건\" };\n}\n\nconst NAME_PADDING = 4;\nconst COUNT_PADDING = 4;\n\nconst HEADER_NAME = \"화주사\";\nconst HEADER_COUNT = \"미전송 건수\";\n\nfunction getDisplayWidth(str) {\n  return [...str].reduce((w, ch) => {\n    if (ch.match(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/)) return w + 2;\n    return w + 1;\n  }, 0);\n}\n\n// 최대 길이 계산\nconst maxNameLength = Math.max(\n  getDisplayWidth(HEADER_NAME),\n  ...data.map(d => getDisplayWidth(d.json.pwn_nm))\n);\n\nconst maxCountLength = Math.max(\n  getDisplayWidth(HEADER_COUNT),\n  ...data.map(d => getDisplayWidth(String(d.json.cnt)))\n);\n\n// WIDTH 산정\nconst NAME_WIDTH = maxNameLength + NAME_PADDING;\nconst COUNT_WIDTH = maxCountLength + COUNT_PADDING;\nconst TOTAL_WIDTH = NAME_WIDTH + COUNT_WIDTH;\n\n// 출력\nlet output = \"\";\noutput += HEADER_NAME.padEnd(NAME_WIDTH - getDisplayWidth(HEADER_NAME)) + HEADER_COUNT.padStart(COUNT_WIDTH) + \"\\n\";\noutput += \"-\".repeat(TOTAL_WIDTH) + \"\\n\\n\";\n\ndata.forEach(d => {\n  const { pwn_nm, cnt } = d.json;\n\n  output +=\n    pwn_nm.padEnd(NAME_WIDTH - getDisplayWidth(pwn_nm)) +\n    String(cnt).padStart(COUNT_WIDTH) +\n    \"\\n\";\n});\n\nreturn { message: output };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        -208
+      ],
+      "id": "abe8550d-413c-40c0-a969-eae05b8bc398",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select   su.rs_company as pwn_nm,\n  su.scnt as cnt\n  from \n(select rs_company, count(rs_company) scnt from sw_sm_order a LEFT JOIN sw_sm_reseller ssr ON a.rs_id = ssr.rs_id  where m_rs_id ='RS-0000000051'\nand a.shipping_due_date >= date(now())\nand a.shipping_due_date < date(now() + interval 1 day)\nand a.exp_start_date = '0000-00-00 00:00:00'\nand a.od_claim_type = ''\ngroup by ssr.rs_company  ) su ;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        208,
+        -208
+      ],
+      "id": "db342fd0-fa33-455d-b4a8-8284e70094a1",
+      "name": "Shopmate 1.0 DB",
+      "alwaysOutputData": true,
+      "credentials": {
+        "mySql": {
+          "id": "nNYeVn57WkL4Bwdr",
+          "name": "MySQL account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select pwn_nm,\n    count(*) as cnt\nfrom om_order_m\n-- 쇼핑몰 송장 전송 여부\nwhere invoice_transf_yn = 'N'\n-- 배송구분코드(03:도착보장)\nand DLVR_DIV_CD = '03' \n-- 클레임존재여부\nand claim_hv_yn = 'N'\n-- 주문상태 (01:정상)\nand od_state = '01'\n-- 새벽 시간 (00:00) 이후에만 적용 가능한 쿼리\nand arrival_guarantee_date >= date(now())\nand arrival_guarantee_date < date(now() + interval 1 day)\n-- 주문(발주)관리,주문서처리,출고준비,발송준비,발송대기단계\nand od_prgrs_state in ('10','20','30','35','40')\ngroup by pwn_nm\norder by pwn_nm;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        208,
+        0
+      ],
+      "id": "78f29112-1488-446b-ad78-12bf2033e278",
+      "name": "Shopmate 2.0 DB",
+      "alwaysOutputData": true,
+      "credentials": {
+        "mySql": {
+          "id": "idTmixdcQiBetvq0",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 30 3 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -80,
+        -208
+      ],
+      "id": "c7454889-650e-4ae1-a021-225347ad0d59",
+      "name": "Schedule Trigger1",
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Shopmate 1.0 DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopmate 2.0 DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send Message 2.0",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Message 2.0": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Send Message 1.0",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopmate 1.0 DB": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopmate 2.0 DB": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Shopmate 2.0 DB",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopmate 1.0 DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "a6439483-f825-4889-8ef2-fa009bdc8a0e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a782972bbea77e86add5d2cef362ae6fba28dca546e6edf0a364c307e3506a90"
+  },
+  "id": "tpisYaHzvZz6PKRaDXXdy",
+  "tags": [
+    {
+      "updatedAt": "2026-01-27T06:19:49.338Z",
+      "createdAt": "2026-01-27T06:19:49.338Z",
+      "id": "FL8CFrGuOSkdxDJU",
+      "name": "shopmate"
+    },
+    {
+      "updatedAt": "2026-01-27T06:19:55.332Z",
+      "createdAt": "2026-01-27T06:19:55.332Z",
+      "id": "NTgjBIViC21UgvaN",
+      "name": "mornitoring"
+    }
+  ]
+}

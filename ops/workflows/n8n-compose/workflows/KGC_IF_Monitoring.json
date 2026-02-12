@@ -1,0 +1,188 @@
+{
+  "name": "KGC I/F Monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5be97853-0165-456c-853e-5d7200383544",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select *\nfrom kgc_put_schedule_info kpsi\nwhere\n  kpsi.remark_ct is not null",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        208,
+        0
+      ],
+      "id": "fd6b3fe5-74c0-4e59-85d3-a8ac105f6322",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "mySql": {
+          "id": "idTmixdcQiBetvq0",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function groupInboundFailByDelivery(rows) {\n  const resultMap = {};\n  \n  rows.forEach((row) => {\n    const { vbeln, matnr, charg, remark_ct } = row.json;\n\n    if (!resultMap[vbeln]) {\n      resultMap[vbeln] = {\n        vbeln,\n        itemsMap: {}\n      }\n    }\n\n    const itemKey = `${matnr}::${charg?.trim() || \"NO_BATCH\"}`;\n\n    if (!resultMap[vbeln].itemsMap[itemKey]) {\n      resultMap[vbeln].itemsMap[itemKey] = {\n        matnr,\n        charg,\n        remark_ct,\n      };\n    }    \n  });\n\n  return resultMap;\n}\n\nfunction makeHashKey(delivery) {\n  return Object.values(delivery.itemsMap)\n    .map(item => {\n      const matnr = String(item.matnr).trim();\n      const charg = (item.charg ?? 'NO_BATCH').trim();\n      const remark = String(item.remark_ct ?? '').trim();\n      return `${matnr}|${charg}|${remark}`;\n    })\n    .sort()\n    .join('||');\n}\n\nconst items = $input.all();\n\nif (items.length < 1) {\n  return { message: '' }\n}\n\nconst deliveryMap = groupInboundFailByDelivery(items);\n\nconst staticData = $getWorkflowStaticData('node');\nconst results = [];\n\nfor (const vbeln in deliveryMap) {\n  const currentHash = makeHashKey(deliveryMap[vbeln]);\n  const prevHash = staticData[vbeln]?.hash;\n\n  if (prevHash !== currentHash) {\n    results.push({\n      vbeln,\n      items: Object.values(deliveryMap[vbeln].itemsMap)\n    });\n\n    staticData[vbeln] = {\n      hash: currentHash,\n      updatedAt: new Date().toISOString()\n    };\n  }\n}\n\nif (results.length < 1) {\n  return { message: '' }\n}\n\nlet message = '';\n\nmessage += '[입고요청 오류]\\n\\n';\n\nresults.forEach((delivery) => {\n  message += `납품번호: ${delivery.vbeln}\\n실패사유\\n`;\n  for (const item of delivery.items) {\n    message += `- 자재코드: ${item.matnr} / 배치코드: ${item.charg}\\n  사유: ${item.remark_ct}\\n\\n`;\n  }\n});\n\nreturn { message };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "f1994e36-e9d6-4930-b658-1bd0ec7d9092",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wh.jandi.com/connect-api/webhook/28640498/aea26117e9a6321ce2c94a26a5287c01",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.tosslab.jandi-v2+json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ body: $input.item.json.message }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        944,
+        -208
+      ],
+      "id": "6f6f8536-99e8-48b1-a1bb-93ddae3a25c0",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b5724c3f-dff5-4f7b-86a4-357c4c8a6084",
+              "leftValue": "=message",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        0
+      ],
+      "id": "32636e6f-1951-4215-9c91-a84c32822d6e",
+      "name": "If"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        []
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "857d563d-6321-4bd3-8ba4-9f9545973124",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a782972bbea77e86add5d2cef362ae6fba28dca546e6edf0a364c307e3506a90"
+  },
+  "id": "RKFPm1DxFvCu4R5VrrpGg",
+  "tags": []
+}

@@ -1,0 +1,453 @@
+{
+  "name": "KGC Interface Monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const pendingDeliveries = $('PendingDelivery').all();\nconst existingPendingDeliveries = $(\"ExistingPendingDelivery\").all();\n\nconst pendingDeliveryMap = new Map();\nconst existingPendingDeliveryMap = new Map();\n\nconst normalize = (v) => {\n  if (v === null || v === undefined) return null;\n  const str = String(v).trim();\n  return str === \"\" ? null : str;\n};\n\npendingDeliveries.forEach(item => {\n  const ZPINV = normalize(item.json.ZPINV);\n  if (ZPINV) {\n    pendingDeliveryMap.set(ZPINV, item.json);\n  }\n});\n\nexistingPendingDeliveries.forEach(item => {\n  const ZPINV = normalize(item.json[\"운송장번호\"]);\n  if (ZPINV) {\n    existingPendingDeliveryMap.set(ZPINV, item.json);\n  }\n});\n\nconst output = [];\n\n// 신규 데이터\nfor (const [ZPINV, data] of pendingDeliveryMap) {\n  if (!existingPendingDeliveryMap.has(ZPINV)) {\n    output.push({\n      json: {\n        ...data,\n        _action: \"append\"\n      }\n    });\n  }\n}\n\n// 삭제 데이터\nfor (const [ZPINV, data] of existingPendingDeliveryMap) {\n  if (!pendingDeliveryMap.has(ZPINV)) {\n    output.push({\n      json: {\n        ZPINV,\n        ZGIDAT: data[\"출고일자\"],\n        ZGITIM: data[\"출고시간\"],\n        _action: \"remove\"\n      }\n    });\n  }\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        832
+      ],
+      "id": "ba787d00-9b2e-4b5d-939d-eb4595963cd3",
+      "name": "Code in JavaScript1",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    izi.TIMESTAMP,\n    izi.ZPINV,\n    izi.ZGIDAT,\n    izi.ZGITIM\nFROM is_zstm04620_int izi\nLEFT JOIN is_zstm04630_int izi2\n    ON izi.ZPINV = izi2.ZPINV\nWHERE izi2.ZPINV IS NULL\nAND izi.ZGIDAT BETWEEN\n      DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 14 DAY), '%Y%m%d')\n  AND DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 DAY), '%Y%m%d')\nORDER BY izi.TIMESTAMP;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        -768,
+        832
+      ],
+      "id": "66692dd6-fd87-48b7-89a7-8e7212452712",
+      "name": "PendingDelivery",
+      "alwaysOutputData": false,
+      "credentials": {
+        "mySql": {
+          "id": "z3JeitaXgvbHeksQ",
+          "name": "KGC IF PRD"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "12HBWIgDDPAXMVrdku8yeNXK_vwq0La3sUHZVsjp0wr0",
+          "mode": "list",
+          "cachedResultName": "정관장_택배배송미완료",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12HBWIgDDPAXMVrdku8yeNXK_vwq0La3sUHZVsjp0wr0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "시트1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12HBWIgDDPAXMVrdku8yeNXK_vwq0La3sUHZVsjp0wr0/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -560,
+        832
+      ],
+      "id": "a1d40c89-dca2-40e5-a23b-02b103a5d4cc",
+      "name": "ExistingPendingDelivery",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ldjlzk5vSYYDbbnk",
+          "name": "Google Sheet Ganzi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "12HBWIgDDPAXMVrdku8yeNXK_vwq0La3sUHZVsjp0wr0",
+          "mode": "list",
+          "cachedResultName": "정관장_택배배송미완료",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12HBWIgDDPAXMVrdku8yeNXK_vwq0La3sUHZVsjp0wr0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "리스트",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12HBWIgDDPAXMVrdku8yeNXK_vwq0La3sUHZVsjp0wr0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "운송장번호": "={{ $json.ZPINV }}",
+            "출고일자": "={{ $json.ZGIDAT }}",
+            "출고시간": "={{ $json.ZGITIM }}",
+            "현재 상태": "배송중"
+          },
+          "matchingColumns": [
+            "운송장번호"
+          ],
+          "schema": [
+            {
+              "id": "운송장번호",
+              "displayName": "운송장번호",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "출고일자",
+              "displayName": "출고일자",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "출고시간",
+              "displayName": "출고시간",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "현재 상태",
+              "displayName": "현재 상태",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "종결",
+              "displayName": "종결",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "미배송 사유",
+              "displayName": "미배송 사유",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "정관장",
+              "displayName": "정관장",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        48,
+        736
+      ],
+      "id": "e90da1f1-afe0-4b2a-9913-529f7c57db43",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ldjlzk5vSYYDbbnk",
+          "name": "Google Sheet Ganzi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e4ab90b0-fcd5-4173-bd37-95ff264bf138",
+              "leftValue": "={{ $json._action }}",
+              "rightValue": "append",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -144,
+        832
+      ],
+      "id": "d54a251d-f012-4d94-9e15-bc21ca9df6e0",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "12HBWIgDDPAXMVrdku8yeNXK_vwq0La3sUHZVsjp0wr0",
+          "mode": "list",
+          "cachedResultName": "정관장_택배배송미완료",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12HBWIgDDPAXMVrdku8yeNXK_vwq0La3sUHZVsjp0wr0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "리스트",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/12HBWIgDDPAXMVrdku8yeNXK_vwq0La3sUHZVsjp0wr0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "운송장번호": "={{ $json.ZPINV }}",
+            "출고일자": "={{ $json.ZGIDAT }}",
+            "출고시간": "={{ $json.ZGITIM }}",
+            "현재 상태": "배송완료"
+          },
+          "matchingColumns": [
+            "운송장번호"
+          ],
+          "schema": [
+            {
+              "id": "운송장번호",
+              "displayName": "운송장번호",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "출고일자",
+              "displayName": "출고일자",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "출고시간",
+              "displayName": "출고시간",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "현재 상태",
+              "displayName": "현재 상태",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "종결",
+              "displayName": "종결",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "미배송 사유",
+              "displayName": "미배송 사유",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "정관장",
+              "displayName": "정관장",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        48,
+        928
+      ],
+      "id": "8d9d57af-a642-4473-a83b-9acdedd89dc1",
+      "name": "Upsert rows",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ldjlzk5vSYYDbbnk",
+          "name": "Google Sheet Ganzi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "c57ff5de-db9e-43db-930a-e58c3bb3ff3c",
+      "name": "Schedule (08:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -976,
+        832
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "PendingDelivery": {
+      "main": [
+        [
+          {
+            "node": "ExistingPendingDelivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExistingPendingDelivery": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upsert rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule (08:00)": {
+      "main": [
+        [
+          {
+            "node": "PendingDelivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "5751993e-4b94-4793-ae90-ca6a044e9c93",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d3a09e257e20a7168dd6af89fa2dda53f1668443a49b9ee33663271b5bfcf109"
+  },
+  "id": "DcmKlCanZmaI8DYp",
+  "tags": []
+}

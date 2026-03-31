@@ -15,10 +15,10 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
-        -80,
-        -16
+        -160,
+        208
       ],
-      "id": "52790a10-72fc-400f-8a15-1789555b908e",
+      "id": "c0eb0e0d-535a-48a9-ad2e-d2c8eb9cf149",
       "name": "Schedule Trigger",
       "retryOnFail": false,
       "alwaysOutputData": false,
@@ -26,15 +26,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.all()\n\nif (\n  data.length === 1 &&\n  Object.keys(data[0].json).length === 0\n) {\n  return { message: \"모든 화주사 미전송 건수 0건\" };\n}\n\nconst NAME_PADDING = 4;\nconst COUNT_PADDING = 4;\n\nconst HEADER_NAME = \"화주사\";\nconst HEADER_COUNT = \"미전송 건수\";\n\nfunction getDisplayWidth(str) {\n  return [...str].reduce((w, ch) => {\n    if (ch.match(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/)) return w + 2;\n    return w + 1;\n  }, 0);\n}\n\n// 최대 길이 계산\nconst maxNameLength = Math.max(\n  getDisplayWidth(HEADER_NAME),\n  ...data.map(d => getDisplayWidth(d.json.pwn_nm))\n);\n\nconst maxCountLength = Math.max(\n  getDisplayWidth(HEADER_COUNT),\n  ...data.map(d => getDisplayWidth(String(d.json.cnt)))\n);\n\n// WIDTH 산정\nconst NAME_WIDTH = maxNameLength + NAME_PADDING;\nconst COUNT_WIDTH = maxCountLength + COUNT_PADDING;\nconst TOTAL_WIDTH = NAME_WIDTH + COUNT_WIDTH;\n\n// 출력\nlet output = \"\";\noutput += HEADER_NAME.padEnd(NAME_WIDTH - getDisplayWidth(HEADER_NAME)) + HEADER_COUNT.padStart(COUNT_WIDTH) + \"\\n\";\noutput += \"-\".repeat(TOTAL_WIDTH) + \"\\n\\n\";\n\ndata.forEach(d => {\n  const { pwn_nm, cnt } = d.json;\n\n  output +=\n    pwn_nm.padEnd(NAME_WIDTH - getDisplayWidth(pwn_nm)) +\n    String(cnt).padStart(COUNT_WIDTH) +\n    \"\\n\";\n});\n\nreturn { message: output };"
+        "jsCode": "const data = $input.all();\n\nif (\n  data.length === 1 &&\n  Object.keys(data[0].json).length === 0\n) {\n  return {\n    message: \"✅ 미전송 건수 없음\"\n  };\n}\n\n// 많은 순 정렬 (선택)\ndata.sort((a, b) => b.json.total_cnt - a.json.total_cnt);\n\nlet output = \"🚨 미전송 건수\\n\\n\";\n\ndata.forEach(d => {\n  const { pwn_nm, total_cnt } = d.json;\n\n  output += `${pwn_nm} → ${Number(total_cnt).toLocaleString()}건\\n`;\n});\n\nreturn {\n  message: output\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        416,
-        0
+        496,
+        208
       ],
-      "id": "6a9f38ea-59d1-48c1-945c-4ceb6dee4f31",
+      "id": "8d683af2-91fe-4f85-89e7-e5867c9db016",
       "name": "Code in JavaScript",
       "alwaysOutputData": true
     },
@@ -63,10 +63,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        624,
-        -208
+        688,
+        0
       ],
-      "id": "929e230e-674d-4749-88ef-c5e716cb5b74",
+      "id": "f5593096-b6c3-464e-8d56-71344ba0d32d",
       "name": "Send Message 1.0"
     },
     {
@@ -94,10 +94,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        624,
-        0
+        688,
+        208
       ],
-      "id": "adecbbb8-cd57-4f9e-9698-bcdbe59aa173",
+      "id": "68965b3d-dce8-4d64-81a2-e049ab5c5bf6",
       "name": "Send Message 2.0"
     },
     {
@@ -107,10 +107,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        416,
-        -208
+        464,
+        0
       ],
-      "id": "abe8550d-413c-40c0-a969-eae05b8bc398",
+      "id": "ab26deed-480a-4acc-9285-8a695a4f323c",
       "name": "Code in JavaScript1"
     },
     {
@@ -122,38 +122,38 @@
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.5,
       "position": [
-        208,
-        -208
+        224,
+        0
       ],
-      "id": "db342fd0-fa33-455d-b4a8-8284e70094a1",
+      "id": "787f79e9-43fe-4472-8dfb-2915c90477fc",
       "name": "Shopmate 1.0 DB",
       "alwaysOutputData": true,
       "credentials": {
         "mySql": {
-          "id": "nNYeVn57WkL4Bwdr",
-          "name": "MySQL account 2"
+          "id": "pRKEMRn2mHsZYnIk",
+          "name": "Shopmate 2.0 Prd"
         }
       }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "select pwn_nm,\n    count(*) as cnt\nfrom om_order_m\n-- 쇼핑몰 송장 전송 여부\nwhere invoice_transf_yn = 'N'\n-- 배송구분코드(03:도착보장)\nand DLVR_DIV_CD = '03' \n-- 클레임존재여부\nand claim_hv_yn = 'N'\n-- 주문상태 (01:정상)\nand od_state = '01'\n-- 새벽 시간 (00:00) 이후에만 적용 가능한 쿼리\nand arrival_guarantee_date >= date(now())\nand arrival_guarantee_date < date(now() + interval 1 day)\n-- 주문(발주)관리,주문서처리,출고준비,발송준비,발송대기단계\nand od_prgrs_state in ('10','20','30','35','40')\ngroup by pwn_nm\norder by pwn_nm;",
+        "query": "SELECT      \n  oom.depot_cd,\n  wdm2.depot_nm,\n  oom.pwn_cd,\n  opm.pwn_nm,\n  SUM(CASE WHEN oom.invoice_transf_yn = 'N' THEN 1 ELSE 0 END) AS total_cnt\nFROM        om_order_m oom\nLEFT JOIN   wm_depot_m wdm2\nON          wdm2.depot_cd = oom.depot_cd\nLEFT JOIN   om_pwn_m opm\nON          opm.pwn_cd = oom.pwn_cd\nWHERE       oom.mall_acc_sno IS NOT NULL\n  AND         oom.mall_cd = 'MAL00038'\n  AND         (oom.gift_yn != 'Y' OR oom.gift_yn IS NULL)\n  AND         oom.od_state = '01'\n  AND         oom.claim_hv_yn = 'N'\n  AND         oom.reg_type = '03'\n  AND         oom.dlvr_div_cd ='03'\n  AND         EXISTS (\n  SELECT 1\n  FROM wm_out_m wom\n  WHERE wom.od_sno = oom.od_sno\n  )\nAND oom.reg_dtm >= '{{ $json.start_dtm }}'\nAND oom.reg_dtm <  '{{ $json.end_dtm }}'\nGROUP by oom.depot_cd, oom.pwn_cd\nORDER by oom.depot_cd, oom.pwn_cd",
         "options": {}
       },
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.5,
       "position": [
-        208,
-        0
+        304,
+        208
       ],
-      "id": "78f29112-1488-446b-ad78-12bf2033e278",
+      "id": "8839f357-597e-4775-af18-c5e189e9d166",
       "name": "Shopmate 2.0 DB",
       "alwaysOutputData": true,
       "credentials": {
         "mySql": {
-          "id": "idTmixdcQiBetvq0",
-          "name": "MySQL account"
+          "id": "pRKEMRn2mHsZYnIk",
+          "name": "Shopmate 2.0 Prd"
         }
       }
     },
@@ -171,14 +171,27 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
-        -80,
-        -208
+        -160,
+        16
       ],
-      "id": "c7454889-650e-4ae1-a021-225347ad0d59",
+      "id": "25912fd7-4043-454e-8cc1-a2f0469843d5",
       "name": "Schedule Trigger1",
       "retryOnFail": false,
       "alwaysOutputData": false,
       "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date(new Date().toLocaleString(\"en-US\", { timeZone: \"Asia/Seoul\" }));\n\nconst hour = now.getHours();\n\nlet baseDate = new Date(now);\n\nif (hour < 6) {\n  baseDate.setDate(baseDate.getDate() - 1);\n}\n\nbaseDate.setHours(0, 0, 0, 0);\n\nconst nextDate = new Date(baseDate);\nnextDate.setDate(nextDate.getDate() + 1);\n\nfunction format(date) {\n  return date.toISOString().slice(0, 19).replace('T', ' ');\n}\n\nreturn [\n  {\n    json: {\n      now,\n      start_dtm: format(baseDate),\n      end_dtm: format(nextDate)\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        208
+      ],
+      "id": "3028c942-b524-4214-9b92-c56ef0e59441",
+      "name": "Resolve Base Date"
     }
   ],
   "pinData": {},
@@ -187,17 +200,16 @@
       "main": [
         [
           {
-            "node": "Shopmate 1.0 DB",
+            "node": "Resolve Base Date",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Shopmate 2.0 DB",
+            "node": "Shopmate 1.0 DB",
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
       ]
     },
     "Code in JavaScript": {
@@ -209,11 +221,6 @@
             "index": 0
           }
         ]
-      ]
-    },
-    "Send Message 2.0": {
-      "main": [
-        []
       ]
     },
     "Code in JavaScript1": {
@@ -253,12 +260,23 @@
       "main": [
         [
           {
-            "node": "Shopmate 2.0 DB",
+            "node": "Shopmate 1.0 DB",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Shopmate 1.0 DB",
+            "node": "Resolve Base Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Base Date": {
+      "main": [
+        [
+          {
+            "node": "Shopmate 2.0 DB",
             "type": "main",
             "index": 0
           }
@@ -266,29 +284,30 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
+    "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "a6439483-f825-4889-8ef2-fa009bdc8a0e",
+  "versionId": "4f4d5658-b23c-4b6c-8974-79751ccdfdb1",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "a782972bbea77e86add5d2cef362ae6fba28dca546e6edf0a364c307e3506a90"
+    "instanceId": "d3a09e257e20a7168dd6af89fa2dda53f1668443a49b9ee33663271b5bfcf109"
   },
-  "id": "tpisYaHzvZz6PKRaDXXdy",
+  "id": "evKDAHdxoR5TrYoN",
   "tags": [
     {
-      "updatedAt": "2026-01-27T06:19:49.338Z",
-      "createdAt": "2026-01-27T06:19:49.338Z",
-      "id": "FL8CFrGuOSkdxDJU",
-      "name": "shopmate"
+      "name": "shopmate",
+      "id": "Gkuy7rLuIsB6oSbv",
+      "updatedAt": "2026-03-31T04:24:49.167Z",
+      "createdAt": "2026-03-31T04:24:49.167Z"
     },
     {
-      "updatedAt": "2026-01-27T06:19:55.332Z",
-      "createdAt": "2026-01-27T06:19:55.332Z",
-      "id": "NTgjBIViC21UgvaN",
-      "name": "mornitoring"
+      "name": "mornitoring",
+      "id": "wExzwUOz4aKhPgRo",
+      "updatedAt": "2026-03-31T04:24:49.029Z",
+      "createdAt": "2026-03-31T04:24:49.029Z"
     }
   ]
 }
